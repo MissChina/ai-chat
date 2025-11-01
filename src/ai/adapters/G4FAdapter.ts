@@ -207,8 +207,10 @@ export class G4FAdapter implements AIAdapter {
               });
             }
           } catch (e) {
-            // Silently continue on parse errors to handle malformed chunks gracefully
-            // In production, integrate with your logging framework
+            // Example: Uncomment the following line to log parse errors for debugging
+            // console.warn('Failed to parse streaming chunk:', { data, error: e });
+            // In production, integrate with your logging framework, e.g.:
+            // logger.warn('Failed to parse streaming chunk', { data, error: e });
           }
         }
       }
@@ -240,7 +242,7 @@ export class G4FAdapter implements AIAdapter {
       }
       return url;
     } catch (error) {
-      throw new Error(`Invalid G4F API URL: ${url}`);
+      throw new Error(`Invalid G4F API URL: ${url} - ${(error as Error).message}`);
     }
   }
 
@@ -253,14 +255,7 @@ export class G4FAdapter implements AIAdapter {
 
   private estimateTokens(content: string): number {
     // Rough estimation: ~4 chars/token for English, ~2 chars/token for Chinese
-    // Optimized: count Chinese characters efficiently
-    let chineseCount = 0;
-    for (let i = 0; i < content.length; i++) {
-      const code = content.charCodeAt(i);
-      if (code >= 0x4e00 && code <= 0x9fa5) {
-        chineseCount++;
-      }
-    }
+    const chineseCount = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
     const otherChars = content.length - chineseCount;
     return Math.ceil(chineseCount / 2 + otherChars / 4);
   }

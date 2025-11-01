@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
+import { AIAdapter } from "../ai/adapters/AIAdapter";
 import { MockAdapter } from "../ai/adapters/MockAdapter";
+import { G4FAdapter } from "../ai/adapters/G4FAdapter";
 import { Message } from "../types/Message";
 import { AIResponse, StreamingChunk } from "../types/Responses";
 import { store } from "../storage/InMemoryStore";
@@ -26,7 +28,7 @@ interface SessionCallbacks {
 }
 
 export class SequentialSessionService {
-  private adapters = new Map<string, MockAdapter>();
+  private adapters = new Map<string, AIAdapter>();
 
   constructor(private readonly callbacks: SessionCallbacks = {}) {}
 
@@ -329,9 +331,15 @@ export class SequentialSessionService {
       .join("\n");
   }
 
-  private getAdapter(modelId: string): MockAdapter {
+  private getAdapter(modelId: string): AIAdapter {
     if (!this.adapters.has(modelId)) {
-      this.adapters.set(modelId, new MockAdapter(modelId));
+      // Use MockAdapter for models starting with 'mock-'
+      // Use G4FAdapter for all other models
+      if (modelId.startsWith('mock-')) {
+        this.adapters.set(modelId, new MockAdapter(modelId));
+      } else {
+        this.adapters.set(modelId, new G4FAdapter(modelId));
+      }
     }
     return this.adapters.get(modelId)!;
   }

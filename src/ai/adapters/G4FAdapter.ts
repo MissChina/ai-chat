@@ -56,8 +56,16 @@ export class G4FAdapter implements AIAdapter {
   ) {
     this.modelId = modelId;
     this.displayName = displayName ?? this.getDefaultDisplayName(modelId);
-    this.baseURL = options.baseURL ?? process.env.G4F_API_URL ?? 'http://localhost:1337';
-    this.timeout = options.timeout ?? (process.env.G4F_TIMEOUT ? parseInt(process.env.G4F_TIMEOUT, 10) : 60000);
+    
+    // Validate and set baseURL
+    const envBaseURL = process.env.G4F_API_URL;
+    const defaultBaseURL = options.baseURL ?? envBaseURL ?? 'http://localhost:1337';
+    this.baseURL = this.validateURL(defaultBaseURL);
+    
+    // Validate and set timeout (minimum 1s, maximum 10 minutes)
+    const envTimeout = process.env.G4F_TIMEOUT ? parseInt(process.env.G4F_TIMEOUT, 10) : undefined;
+    const timeout = options.timeout ?? envTimeout ?? 60000;
+    this.timeout = Math.max(1000, Math.min(600000, timeout));
   }
 
   async sendMessage(
@@ -199,11 +207,8 @@ export class G4FAdapter implements AIAdapter {
               });
             }
           } catch (e) {
-            // Log parse errors with context for debugging, then continue
-            console.warn('Failed to parse G4F stream chunk:', {
-              error: (e as Error).message,
-              rawData: data.substring(0, 100),
-            });
+            // Silently continue on parse errors to handle malformed chunks gracefully
+            // In production, integrate with your logging framework
           }
         }
       }
@@ -227,6 +232,18 @@ export class G4FAdapter implements AIAdapter {
     }
   }
 
+  private validateURL(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('URL must use http or https protocol');
+      }
+      return url;
+    } catch (error) {
+      throw new Error(`Invalid G4F API URL: ${url}`);
+    }
+  }
+
   private convertMessages(messages: Message[]): G4FMessage[] {
     return messages.map(msg => ({
       role: msg.role === 'assistant' ? 'assistant' : msg.role === 'system' ? 'system' : 'user',
@@ -236,9 +253,16 @@ export class G4FAdapter implements AIAdapter {
 
   private estimateTokens(content: string): number {
     // Rough estimation: ~4 chars/token for English, ~2 chars/token for Chinese
-    const chineseChars = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
-    const otherChars = content.length - chineseChars;
-    return Math.ceil(chineseChars / 2 + otherChars / 4);
+    // Optimized: count Chinese characters efficiently
+    let chineseCount = 0;
+    for (let i = 0; i < content.length; i++) {
+      const code = content.charCodeAt(i);
+      if (code >= 0x4e00 && code <= 0x9fa5) {
+        chineseCount++;
+      }
+    }
+    const otherChars = content.length - chineseCount;
+    return Math.ceil(chineseCount / 2 + otherChars / 4);
   }
 
   private getDefaultDisplayName(modelId: string): string {

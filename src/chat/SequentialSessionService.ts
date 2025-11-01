@@ -224,7 +224,15 @@ export class SequentialSessionService {
 
     this.updateSession(session, { state: "SUPPLEMENTING" });
     speaker.supplementCount += 1;
-    return this.generateSupplement(session, speaker, followupMessage);
+
+    const fallbackState =
+      session.currentIndex >= session.speakers.length ? "COMPLETED" : "AI_FINISHED";
+
+    return this.generateSupplement(session, speaker, followupMessage).catch((error) => {
+      speaker.supplementCount = Math.max(0, speaker.supplementCount - 1);
+      this.updateSession(session, { state: fallbackState });
+      throw error;
+    });
   }
 
   private async generateSupplement(

@@ -317,8 +317,12 @@ export class G4FAdapter implements AIAdapter {
               });
             }
           } catch (e) {
-            // 忽略解析错误，继续处理下一行
-            console.warn('Failed to parse G4F stream chunk:', e);
+            // Log parse errors with context for debugging, then continue
+            // 记录解析错误以便调试，然后继续处理
+            console.warn('Failed to parse G4F stream chunk:', {
+              error: (e as Error).message,
+              rawData: data.substring(0, 100), // Log first 100 chars
+            });
           }
         }
       }
@@ -440,7 +444,7 @@ constructor(
   this.modelId = modelId;
   this.displayName = displayName ?? this.getDefaultDisplayName(modelId);
   this.baseURL = options.baseURL ?? process.env.G4F_API_URL ?? 'http://localhost:1337';
-  this.timeout = options.timeout ?? Number(process.env.G4F_TIMEOUT ?? 60000);
+  this.timeout = options.timeout ?? (process.env.G4F_TIMEOUT ? parseInt(process.env.G4F_TIMEOUT, 10) : 60000);
 }
 ```
 

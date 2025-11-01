@@ -40,7 +40,7 @@ export class G4FAdapter implements AIAdapter {
     this.modelId = modelId;
     this.displayName = displayName ?? this.getDefaultDisplayName(modelId);
     this.baseURL = options.baseURL ?? process.env.G4F_API_URL ?? 'http://localhost:1337';
-    this.timeout = options.timeout ?? Number(process.env.G4F_TIMEOUT ?? 60000);
+    this.timeout = options.timeout ?? (process.env.G4F_TIMEOUT ? parseInt(process.env.G4F_TIMEOUT, 10) : 60000);
   }
 
   async sendMessage(
@@ -182,7 +182,11 @@ export class G4FAdapter implements AIAdapter {
               });
             }
           } catch (e) {
-            console.warn('Failed to parse G4F stream chunk:', e);
+            // Log parse errors with context for debugging
+            console.warn('Failed to parse G4F stream chunk:', {
+              error: (e as Error).message,
+              rawData: data.substring(0, 100), // Log first 100 chars for context
+            });
           }
         }
       }

@@ -62,6 +62,23 @@ export class G4FAdapter implements AIAdapter {
     const defaultBaseURL = options.baseURL ?? envBaseURL ?? 'http://localhost:1337';
     this.baseURL = this.validateURL(defaultBaseURL);
     
+    // Warn if using HTTP protocol outside of localhost
+    try {
+      const urlObj = new URL(this.baseURL);
+      if (
+        urlObj.protocol === 'http:' &&
+        urlObj.hostname !== 'localhost' &&
+        urlObj.hostname !== '127.0.0.1'
+      ) {
+        console.warn(
+          `[G4FAdapter] Warning: Unsecured HTTP protocol detected for baseURL (${this.baseURL}). ` +
+          `For production deployments, use HTTPS to prevent unencrypted API communication.`
+        );
+      }
+    } catch (e) {
+      // Ignore URL parse errors; validateURL should handle them
+    }
+    
     // Validate and set timeout (minimum 1s, maximum 10 minutes)
     const envTimeout = process.env.G4F_TIMEOUT ? parseInt(process.env.G4F_TIMEOUT, 10) : undefined;
     const timeout = options.timeout ?? envTimeout ?? 60000;
@@ -207,10 +224,9 @@ export class G4FAdapter implements AIAdapter {
               });
             }
           } catch (e) {
-            // Example: Uncomment the following line to log parse errors for debugging
-            // console.warn('Failed to parse streaming chunk:', { data, error: e });
-            // In production, integrate with your logging framework, e.g.:
-            // logger.warn('Failed to parse streaming chunk', { data, error: e });
+            // Log parse errors for visibility; streaming may include non-JSON lines or malformed chunks.
+            // If parse errors are expected and non-fatal, we log and continue.
+            console.warn('Failed to parse streaming chunk:', { data, error: e });
           }
         }
       }
